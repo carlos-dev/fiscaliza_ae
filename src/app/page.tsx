@@ -1,4 +1,4 @@
-import { SearchInput } from "@/components/search-input";
+import { Search } from "@/components/search";
 
 export default function Home() {
   return (
@@ -6,11 +6,12 @@ export default function Home() {
       <header>
         <span className="text-white text-2xl logo">Fiscaliza ae</span>
       </header>
-      <h2 className="text-white text-3xl text-center">Veja se o político quem voltou ta trabalhando direitinho ou é um pé rapado</h2>
+      <h2 className="text-white text-3xl text-center">
+        Veja se o político quem voltou ta trabalhando direitinho ou é um pé
+        rapado
+      </h2>
 
-      <h3 className="">Selecione o tipo de cargo</h3>
-
-      <SearchInput />
+      <Search />
     </div>
   );
 }
