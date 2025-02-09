@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Poppins } from "next/font/google";
 import "./globals.css";
-import { streetMaster } from '@/fonts/fonts'
+import { streetMaster } from "@/fonts/fonts";
+import ReactQueryProvider from "@/components/provider/react-query";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,10 +14,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 const poppins = Poppins({
-  weight: ['400', '600'],
-  subsets: ['latin'],
-  display: 'swap',
- })
+  weight: ["400", "600"],
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -33,7 +34,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${poppins.className} antialiased`}
       >
-        {children}
+        <ReactQueryProvider>{children}</ReactQueryProvider>
       </body>
     </html>
   );
