@@ -68,10 +68,78 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    color: hsl(var(--background));
+  }
+}
+
+@layer utilities {
+  .scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .scrollbar::-webkit-scrollbar-track {
+    border-radius: 100vh;
+    background: #444;
+  }
+
+  .scrollbar::-webkit-scrollbar-thumb {
+    background: #999;
+    border-radius: 100vh;
   }
 }
 
 .logo {
   font-family: var(--font-street-master), Arial, sans-serif;
+}
+
+/* Enhanced animations */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+/* Underline animation for links */
+.link-hover-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.link-hover-underline:after {
+  content: "";
+  position: absolute;
+  width: 100%;
+  transform: scaleX(0);
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background-color: currentColor;
+  transform-origin: bottom right;
+  transition: transform 0.3s ease-out;
+}
+
+.link-hover-underline:hover:after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
 }

@@ -1,5 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { searchDeputy, getSenators } from "@/services/api";
+import {
+  searchDeputy,
+  getSenators,
+  getDeputy,
+  getDeputyExpenses,
+  getDeputyPropositions,
+  gehSenatorById,
+  getAuthorshipSenator,
+  getReportsSenator,
+  getVotesSenator,
+} from "@/services/api";
 
 export function useSearchDeputies(searchTerm: string) {
   return useQuery({
@@ -9,9 +19,62 @@ export function useSearchDeputies(searchTerm: string) {
   });
 }
 
-export function useSearchSenators() {
+export function useGetDeputy(id: number) {
+  return useQuery({
+    queryKey: ["deputy"],
+    queryFn: () => getDeputy(id),
+  });
+}
+
+export function useGetDeputyExpenses(id: number) {
+  return useQuery({
+    queryKey: ["deputyExpenses"],
+    queryFn: () => getDeputyExpenses(id),
+  });
+}
+
+export function useGetSenators() {
   return useQuery({
     queryKey: ["senators"],
     queryFn: () => getSenators(),
+  });
+}
+
+export function useGetDeputyPropositions(id: number) {
+  return useQuery({
+    queryKey: ["deputyPropositions"],
+    queryFn: () => getDeputyPropositions(id),
+  });
+}
+
+export function useGetSenatorById(id: string) {
+  return useQuery({
+    queryKey: ["senatorById"],
+    queryFn: () => gehSenatorById(id),
+    enabled: !!id,
+  });
+}
+
+export function useGetSenatorAuthorship(id: string, year: number) {
+  return useQuery({
+    queryKey: ["authorshipSenator"],
+    queryFn: () => getAuthorshipSenator(id, year),
+    enabled: !!id,
+  });
+}
+
+export function useGetReportsSenator(id: string, year: number) {
+  return useQuery({
+    queryKey: ["reportsSenator"],
+    queryFn: () => getReportsSenator(id, year),
+    enabled: !!id,
+  });
+}
+
+export function useGetVotesSenator(id: string, year: number) {
+  return useQuery({
+    queryKey: ["votesSenator"],
+    queryFn: () => getVotesSenator(id, year),
+    enabled: !!id,
   });
 }

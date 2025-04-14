@@ -1,20 +1,32 @@
 "use client";
 import { Input } from "@/components/ui/input";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useMemo } from "react";
 import { debounce } from "@/utils/debounce";
 import { Skeleton } from "./ui/skeleton";
 import { ItemList } from "./item-list";
-import { useSearchDeputies, useSearchSenators } from "@/hooks/useQuery";
+import { useSearchDeputies, useGetSenators } from "@/hooks/useQuery";
 import { TParliamentarianType } from "@/types";
 import { ParliamentarianTypeEnum } from "@/enums/ParliamentarianTypeEnum";
 
 export function SearchInput({ type }: { type: TParliamentarianType }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: senators } = useSearchSenators();
-  const { data: deputies, isLoading } = useSearchDeputies(searchTerm);
-  console.log({
-    senators: senators?.ListaParlamentarEmExercicio.Parlamentares.Parlamentar,
-  });
+  const isDeputy = type === ParliamentarianTypeEnum.DEPUTY;
+  const { data: senators } = useGetSenators();
+  const { data: deputies, isLoading } = useSearchDeputies(
+    isDeputy ? searchTerm : ""
+  );
+  const senatorsList =
+    senators?.ListaParlamentarEmExercicio.Parlamentares.Parlamentar;
+
+  const list = useMemo(() => {
+    return isDeputy
+      ? deputies?.dados
+      : senatorsList?.filter((item) =>
+          item.IdentificacaoParlamentar.NomeCompletoParlamentar.toLowerCase().includes(
+            searchTerm.toLowerCase()
+          )
+        );
+  }, [isDeputy, deputies?.dados, senatorsList, searchTerm]);
 
   const debouncedSetSearch = debounce((value: string) => {
     setSearchTerm(value);
@@ -23,11 +35,9 @@ export function SearchInput({ type }: { type: TParliamentarianType }) {
   return (
     <div>
       <Input
-        placeholder={`Informe o nome do ${
-          type === ParliamentarianTypeEnum.DEPUTY ? "deputado" : "senador"
-        }`}
+        placeholder={`Informe o nome do ${isDeputy ? "deputado" : "senador"}`}
         onChange={(e) => debouncedSetSearch(e.target.value)}
-        className={`text-primary`}
+        className={`text-primary border-0 border-b`}
         disabled={isLoading}
       />
 
@@ -40,7 +50,7 @@ export function SearchInput({ type }: { type: TParliamentarianType }) {
       )}
 
       <Suspense fallback={<Skeleton className="h-[20px] rounded-full mt-5" />}>
-        {deputies?.dados && <ItemList deputies={deputies.dados} />}
+        {!!list?.length && searchTerm && <ItemList list={list} />}
         {deputies?.dados?.length === 0 && (
           <h3 className="text-xl text-center">Nenhum resultado encontrado</h3>
         )}

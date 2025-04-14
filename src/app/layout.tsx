@@ -32,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="pt" className={`${streetMaster.variable} max-h-screen`}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${poppins.className} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${poppins.className} scrollbar antialiased dark bg-zinc-900 min-h-screen p-5`}
       >
         <ReactQueryProvider>{children}</ReactQueryProvider>
       </body>
