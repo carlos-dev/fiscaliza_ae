@@ -2,7 +2,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -17,19 +16,12 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { getDeputyExpenses } from "@/services/api";
-import { IDeputyExpenseData } from "../types/index";
+import { ExpenseData, IDeputyExpenseData } from "../types/index";
 import { ParliamentaryDetailedExpensesModal } from "./parliamentary-detailed-expenses-modal";
 import { formatCurrency } from "@/utils/currency";
-
-type ExpenseData = {
-  month: string;
-  value: number;
-  originalMonth?: number;
-};
+import { MonthlyExpensesTab } from "./montly-expenses-tab";
 
 type OfficeBudgetData = {
   month: string;
@@ -57,7 +49,6 @@ export function ParliamentaryExpensesTab({
   deputyId,
   selectedYear,
 }: ParliamentaryExpensesTabProps) {
-  const [currentPage, setCurrentPage] = useState(1);
   const [currentExpenses, setCurrentExpenses] =
     useState<ExpenseData[]>(expenses);
   const [isLoading, setIsLoading] = useState(false);
@@ -69,7 +60,9 @@ export function ParliamentaryExpensesTab({
 
   // Transform office budget data for chart
   const officeBudgetData = officeBudget.map((item) => ({
-    month: item.month,
+    month: new Date(0, Number(item.month) - 1).toLocaleDateString("pt-BR", {
+      month: "short",
+    }),
     available: parseFloat(
       item.avaialbleValue.replace(/[^\d,]/g, "").replace(",", ".")
     ),
@@ -136,69 +129,11 @@ export function ParliamentaryExpensesTab({
     }));
   };
 
-  // Handle page navigation
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || isLoading) return;
-
-    setCurrentPage(newPage);
-    fetchExpenses(newPage);
-  };
-
-  const handleMonthClick = (data: ExpenseData) => {
-    if (data && data.originalMonth) {
-      setSelectedMonth(data.originalMonth);
-      setShowDetailModal(true);
-    }
-  };
-
   // Get filtered expenses for the selected month
   const getDetailedExpenses = () => {
     if (!selectedMonth) return [];
     return rawExpensesData.filter((expense) => expense.mes === selectedMonth);
   };
-
-  const renderChart = () =>
-    !!currentExpenses.length ? (
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={currentExpenses}
-          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          onClick={(data) => {
-            if (data && data.activePayload && data.activePayload[0]) {
-              handleMonthClick(data.activePayload[0].payload);
-            }
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="month" />
-          <YAxis
-            tickFormatter={(value) =>
-              new Intl.NumberFormat("pt-BR", {
-                notation: "compact",
-                compactDisplay: "short",
-              }).format(value)
-            }
-          />
-          <Tooltip
-            formatter={(value: number) => formatCurrency(value)}
-            labelFormatter={(label) => `Mês: ${label}`}
-            cursor={{ fill: "rgba(0, 0, 0, 0.1)" }}
-          />
-          <Bar dataKey="value" fill="#8884d8" cursor="pointer">
-            {currentExpenses.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={`#${Math.floor(Math.random() * 16777215).toString(16)}`}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    ) : (
-      <p className="text-muted-foreground">
-        Não há dados disponíveis para o mês selecionado.
-      </p>
-    );
 
   return (
     <Tabs defaultValue="monthly">
@@ -208,53 +143,15 @@ export function ParliamentaryExpensesTab({
         <TabsTrigger value="parliamentary-quota">Cota Parlamentar</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="monthly">
-        <Card>
-          <CardHeader>
-            <CardTitle>Gastos Mensais</CardTitle>
-            <CardDescription>
-              Gastos parlamentares registrados nos últimos meses.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] flex items-center justify-center">
-              {isLoading ? (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                renderChart()
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2 text-center">
-              Clique em uma barra para ver despesas detalhadas do mês
-            </p>
-          </CardContent>
-          {deputyId && selectedYear && (
-            <CardFooter className="flex justify-center space-x-2 pt-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1 || isLoading}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="flex items-center text-sm">
-                Página {currentPage}
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={!currentExpenses.length || isLoading}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </CardFooter>
-          )}
-        </Card>
-      </TabsContent>
+      <MonthlyExpensesTab
+        currentExpenses={currentExpenses}
+        deputyId={deputyId}
+        selectedYear={selectedYear}
+        isLoading={isLoading}
+        fetchExpenses={fetchExpenses}
+        setShowDetailModal={setShowDetailModal}
+        setSelectedMonth={setSelectedMonth}
+      />
 
       <TabsContent value="office-budget">
         <Card>
@@ -317,7 +214,7 @@ export function ParliamentaryExpensesTab({
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                    <XAxis dataKey="month" className="text-xs" />
                     <YAxis
                       tickFormatter={(value) =>
                         new Intl.NumberFormat("pt-BR", {
@@ -329,6 +226,7 @@ export function ParliamentaryExpensesTab({
                     <Tooltip
                       formatter={(value: number) => formatCurrency(value)}
                       labelFormatter={(label) => `Período: ${label}`}
+                      labelStyle={{ color: "#000" }}
                     />
                     <Bar dataKey="value" name="Valor" fill="#3F51B5">
                       {quotaData.map((entry, index) => (

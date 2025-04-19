@@ -37,8 +37,6 @@ export function ParliamentaryDetailedExpensesModal({
   showDetailModal,
   detailedExpenses,
 }: ParliamentaryDetailedExpensesModalProps) {
-  console.log({ detailedExpenses });
-
   return (
     <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
       <DialogContent className="sm:max-w-[900px] max-h-[90vh]">

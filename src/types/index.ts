@@ -10,13 +10,17 @@ export interface IDeputyResponse {
   dados: IDeputy[];
 }
 
+export interface IDeputyExpenseData {
+  ano: number;
+  mes: number;
+  tipoDespesa: string;
+  valorLiquido: number;
+  nomeFornecedor: string;
+  dataDocumento: string;
+}
+
 export interface IDeputyExpenses {
-  dados: {
-    ano: number;
-    mes: number;
-    tipoDespesa: string;
-    valorLiquido: number;
-  }[];
+  dados: IDeputyExpenseData[];
 }
 
 export interface IDeputyPropositions {
@@ -26,6 +30,12 @@ export interface IDeputyPropositions {
     id: number;
     siglaTipo: string;
   }[];
+}
+
+export interface ExpenseData {
+  month: string;
+  value: number;
+  originalMonth?: number;
 }
 
 export interface ISenatorRaw {
