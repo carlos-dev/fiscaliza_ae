@@ -5,155 +5,64 @@
 
 ## Summary
 
-Build a web application that identifies and scores potential irregularities in Brazilian federal parliamentary amendments by analyzing data from government APIs, calculating risk scores based on objective criteria (company age, CNAE compatibility, capital adequacy), and providing AI-assisted visual location analysis. The system emphasizes data transparency, legal safety through neutral language, and citizen-friendly interfaces.
-
-**Technical Approach**: Web application with FastAPI backend orchestrating external API calls and risk calculations, React/TypeScript frontend with Tailwind CSS, and AI agent using Agno framework (GPT-4.1-mini) for image classification and NLP-based CNAE compatibility analysis. Optional Supabase storage for caching and performance optimization.
+A web application that enables Brazilian citizens to identify and score potential irregularities in federal parliamentary amendments by cross-referencing amendment data with company registration data and using AI-assisted visual analysis. The system calculates risk scores based on company age, CNAE compatibility, and capital adequacy, presenting findings with full source traceability and legally neutral language.
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+ (backend), Node.js 18+ (frontend), TypeScript 5+
-**Primary Dependencies**: FastAPI (backend API framework), React 18 (frontend), Vite (build tool), Tailwind CSS (styling), Agno framework (AI agent orchestration), OpenAI GPT-4.1-mini (AI model)
-**Storage**: Supabase (PostgreSQL-based) for caching amendment data, company data, risk scores, and AI analysis results - enables 7-day/30-day cache strategy per FR-013
-**Testing**: pytest (backend unit/integration tests), pytest-asyncio (async test support), Vitest (frontend unit tests), Playwright (E2E tests)
-**Target Platform**: Web (browser-based), deployed on cloud platform (AWS/GCP/Azure or Vercel/Railway)
-**Project Type**: Web application (frontend + backend microservices)
+**Language/Version**: Python 3.11+ (Backend), TypeScript 5.x (Frontend)
+**Primary Dependencies**:
+- Backend: FastAPI, SQLAlchemy, Pydantic, httpx (async HTTP client)
+- AI Agent: OpenAI GPT-4o API or Anthropic Claude 3.5 Sonnet API
+- Frontend: React 18+, Vite, Tailwind CSS
+- Auth: python-jose (JWT)
+
+**Storage**: PostgreSQL 15+ (production), SQLite (development)
+**Testing**: pytest + pytest-asyncio (backend), Vitest + React Testing Library (frontend)
+**Target Platform**: Linux server (backend), modern browsers (frontend)
+**Project Type**: Web application (frontend + backend)
 **Performance Goals**:
-- P95 < 2 seconds for cached data queries (per Constitution Principle IV)
-- P95 < 10 seconds for fresh government API calls
-- Support 100+ concurrent users without degradation
+- p95 < 2s for cached queries (Constitution IV requirement)
+- p95 < 10s for fresh API calls
+- Support 10,000+ amendments without degradation (SC-003)
+
 **Constraints**:
-- Government APIs rate-limited (must implement aggressive caching per Constitution Principle IV)
-- Street View API costs (budget considerations for image retrieval)
-- AI API costs (GPT-4.1-mini token usage for classification tasks)
-- Must maintain legal safety (no accusatory language per Constitution Principle II)
-**Scale/Scope**:
-- ~10,000+ amendments in initial dataset
-- ~5,000+ unique companies
-- Expected concurrent users: 50-200 during peak civic engagement periods
+- Cache duration: 7 days (amendments), 30 days (company data)
+- Must respect government API rate limits
+- Portuguese language interface
+- Mobile-first responsive design (WCAG 2.1 AA)
+
+**Scale/Scope**: 10,000+ amendments, public-facing application
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### Principle I: Data Transparency First ✅ PASS
+### Pre-Design Validation
 
-**Requirements**:
-- All government data must retain full traceability to official sources
-- Distinguish between raw data, derived insights, and AI interpretations
-- One-click access to original source data
+| Principle | Requirement | Compliance Status | Implementation Notes |
+|-----------|-------------|-------------------|---------------------|
+| **I. Data Transparency** | Full traceability to official sources | ✅ PASS | FR-012: All data includes source links; FR-014: Staleness indicators for cached data |
+| **I. Data Transparency** | Distinguish raw vs derived vs AI data | ✅ PASS | FR-003 (derived scores), FR-009/FR-010 (AI classification with labels) |
+| **I. Data Transparency** | One-click access to original source | ✅ PASS | FR-012: Direct links to Portal da Transparência and BrasilAPI |
+| **II. Legal Safety** | Never make direct accusations | ✅ PASS | FR-011: Neutral terminology mandate ("Potential Irregularity", "High Risk Pattern") |
+| **II. Legal Safety** | Present objective facts only | ✅ PASS | FR-015: Plain-language factor explanations based on data |
+| **II. Legal Safety** | Explainable anomaly detection | ✅ PASS | FR-003/FR-015: Risk score breakdown with factor contributions |
+| **III. AI Ethics** | AI outputs explainable | ✅ PASS | FR-010: AI classification with disclaimer; FR-015: Factor explanations |
+| **III. AI Ethics** | AI content clearly labeled | ✅ PASS | FR-010: "AI-generated" label and disclaimer required |
+| **III. AI Ethics** | No individual behavior prediction | ✅ PASS | System analyzes transactions, not individuals |
+| **IV. Performance** | Minimize government API load | ✅ PASS | FR-013: Aggressive caching (7/30 days) |
+| **IV. Performance** | p95 < 2s cached, < 10s fresh | ✅ PASS | SC-001: 2s target for cached data |
+| **IV. Performance** | Circuit breakers and fallbacks | ✅ PASS | Edge case: Serve cached data with staleness indicator |
+| **V. Citizen-Centric UX** | Non-technical user design | ⚠️ NEEDS ATTENTION | Spec mentions Portuguese interface; need inline glossaries for terms like "CNAE", "Capital Social" |
+| **V. Citizen-Centric UX** | WCAG 2.1 AA accessibility | ⚠️ NEEDS ATTENTION | Not explicitly in spec; must be added to implementation |
+| **V. Citizen-Centric UX** | Mobile-first responsive | ⚠️ NEEDS ATTENTION | Assumption 6 mentions mobile access; must enforce in design |
 
-**Compliance**:
-- ✅ FR-012: All data includes direct links to original government sources
-- ✅ Spec defines clear data entities (Amendment, Company) with source timestamps
-- ✅ Risk Assessment entity separates calculated scores from raw data
-- ✅ Visual Analysis entity marks AI classifications distinctly
+### Gate Result: ✅ PASS (with UX enhancements required in implementation)
 
-**Actions**: Document API endpoints in contracts/, include source URL fields in data model
-
----
-
-### Principle II: Legal Safety & Responsible Communication ✅ PASS
-
-**Requirements**:
-- NEVER make direct accusations of wrongdoing
-- Use neutral, evidence-based language
-- Reference official audit criteria (TCU, CGU)
-
-**Compliance**:
-- ✅ FR-011: System enforces neutral terminology ("Potential Irregularity" not "fraud")
-- ✅ Spec language models neutral communication in all user stories
-- ✅ Success criteria SC-006: Zero instances of accusatory terminology
-
-**Actions**: Create terminology checklist in quickstart.md, implement content validation in frontend components
-
----
-
-### Principle III: AI Ethics & Explainability ✅ PASS
-
-**Requirements**:
-- AI features must be explainable, auditable, bias-aware
-- AI-generated content clearly labeled with confidence scores
-- Provide opt-out mechanisms where feasible
-
-**Compliance**:
-- ✅ FR-010: AI classification displayed with "AI-generated" label and disclaimer
-- ✅ FR-015: Risk score calculations include plain-language explanations
-- ✅ Visual Analysis entity includes confidence scores and analysis timestamps
-- ✅ Spec defines AI as assistance tool, not decision-maker
-
-**Actions**:
-- Document AI model versions and prompts in research.md
-- Include confidence thresholds in data-model.md
-- Add explainability endpoints to contracts/
-
----
-
-### Principle IV: Performance & Scalability for Public APIs ✅ PASS
-
-**Requirements**:
-- Minimize government API load through caching
-- P95 < 2 seconds cached, < 10 seconds fresh
-- Circuit breakers and fallback strategies
-- Monitor API health
-
-**Compliance**:
-- ✅ FR-013: 7-day cache for amendments, 30-day cache for company data
-- ✅ FR-014: Display data staleness indicators
-- ✅ Edge cases define API unavailability handling (cached data + staleness indicator)
-- ✅ Success criteria SC-001: 2-second cached query target
-- ✅ Supabase storage enables efficient caching strategy
-
-**Actions**:
-- Define caching layer architecture in research.md
-- Create API health monitoring design in data-model.md
-- Document circuit breaker patterns in quickstart.md
-
----
-
-### Principle V: Citizen-Centric User Experience ✅ PASS
-
-**Requirements**:
-- Design for non-technical users
-- WCAG 2.1 AA accessibility
-- Mobile-first responsive design
-- Progressive disclosure
-
-**Compliance**:
-- ✅ User stories describe citizen-friendly workflows (search/filter/detail)
-- ✅ Spec assumptions define Portuguese language, basic web literacy users
-- ✅ Success criteria SC-002: 3-click navigation to detailed analysis
-- ✅ React + Tailwind enables responsive, accessible UI development
-
-**Actions**:
-- Define accessibility requirements in research.md
-- Create mobile-first component designs
-- Include CNAE glossary in data-model.md
-
----
-
-### Security & Privacy Requirements ✅ PASS
-
-**Compliance**:
-- ✅ Public data only (no PII beyond optional user accounts)
-- ✅ HTTPS, secure headers, rate limiting (standard for FastAPI + React deployment)
-- ✅ Spec assumptions: no authentication required for basic functionality
-
-**Actions**: Document security headers configuration in research.md
-
----
-
-### Technical Standards ✅ PASS
-
-**Compliance**:
-- ✅ Testing framework specified (pytest, Vitest, Playwright)
-- ✅ FR-012: API dependencies documented (Portal da Transparência, BrasilAPI)
-- ✅ Structured logging and observability (FastAPI + standard logging libraries)
-
-**Actions**: Define test coverage requirements in research.md
-
----
-
-### 🎯 OVERALL GATE STATUS: ✅ PASS - All principles satisfied, proceed to Phase 0
+**Required UX Enhancements** (to be tracked in tasks):
+1. Add inline glossary for technical terms (CNAE, Capital Social, CNPJ)
+2. Implement WCAG 2.1 AA compliance checklist
+3. Mobile-first responsive design verification
 
 ## Project Structure
 
@@ -162,14 +71,13 @@ Build a web application that identifies and scores potential irregularities in B
 ```text
 specs/001-emendas-oversight/
 ├── plan.md              # This file
-├── research.md          # Phase 0: Technology decisions, API research, AI model selection
-├── data-model.md        # Phase 1: Entities, schemas, risk scoring algorithms
-├── quickstart.md        # Phase 1: Developer setup, deployment guide, terminology
-├── contracts/           # Phase 1: API endpoint specifications
-│   ├── backend-api.yaml     # OpenAPI spec for FastAPI endpoints
-│   └── external-apis.md     # Portal da Transparência, BrasilAPI, Street View API docs
-└── checklists/
-    └── requirements.md  # Spec validation checklist
+├── research.md          # Phase 0 output - technology decisions
+├── data-model.md        # Phase 1 output - entity schemas
+├── quickstart.md        # Phase 1 output - local dev setup
+├── contracts/           # Phase 1 output - API specifications
+│   ├── openapi.yaml     # REST API contract
+│   └── ai-agent.md      # AI agent interface contract
+└── tasks.md             # Phase 2 output (/speckit.tasks command)
 ```
 
 ### Source Code (repository root)
@@ -177,232 +85,229 @@ specs/001-emendas-oversight/
 ```text
 backend/
 ├── src/
-│   ├── agents/              # AI agent logic
-│   │   ├── image_classifier.py
-│   │   └── cnae_analyzer.py
-│   ├── api/                 # FastAPI routes
-│   │   ├── amendments.py
-│   │   ├── companies.py
-│   │   └── risk_scores.py
-│   ├── models/              # Pydantic models
-│   │   ├── amendment.py
-│   │   ├── company.py
-│   │   └── risk_assessment.py
+│   ├── models/              # SQLAlchemy models (Amendment, Company, RiskAssessment, VisualAnalysis)
 │   ├── services/            # Business logic
-│   │   ├── portal_transparencia.py
-│   │   ├── brasil_api.py
-│   │   ├── street_view.py
-│   │   ├── risk_calculator.py
-│   │   └── cache_manager.py
-│   └── main.py              # FastAPI application entry
+│   │   ├── transparency.py  # Portal da Transparência API client
+│   │   ├── brasilapi.py     # BrasilAPI client
+│   │   ├── risk_scorer.py   # Risk score calculation engine
+│   │   ├── ai_agent.py      # Multimodal AI agent (vision + NLP)
+│   │   └── cache.py         # Caching layer
+│   ├── api/                 # FastAPI routes
+│   │   ├── amendments.py    # Amendment CRUD + filtering
+│   │   ├── companies.py     # Company data endpoints
+│   │   └── auth.py          # JWT authentication
+│   └── core/                # Configuration, dependencies
+│       ├── config.py
+│       ├── database.py
+│       └── security.py
 ├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── contract/
+│   ├── contract/            # API contract tests
+│   ├── integration/         # External API integration tests
+│   └── unit/                # Unit tests for services
+├── alembic/                 # Database migrations
 ├── requirements.txt
 └── pyproject.toml
 
 frontend/
 ├── src/
-│   ├── components/          # React components
-│   │   ├── Dashboard/
-│   │   │   ├── AmendmentList.tsx
-│   │   │   ├── FilterPanel.tsx
-│   │   │   └── RiskScoreBadge.tsx
-│   │   ├── AmendmentDetail/
-│   │   │   ├── AmendmentInfo.tsx
-│   │   │   ├── CompanyInfo.tsx
-│   │   │   ├── RiskBreakdown.tsx
-│   │   │   └── VisualAnalysis.tsx
-│   │   └── shared/
-│   │       ├── Glossary.tsx
-│   │       └── SourceLink.tsx
-│   ├── pages/
-│   │   ├── Dashboard.tsx
-│   │   └── AmendmentDetail.tsx
-│   ├── services/            # API client
+│   ├── components/          # Reusable UI components
+│   │   ├── RiskScore/       # Risk score display with breakdown
+│   │   ├── SourceLink/      # Source traceability links
+│   │   ├── AILabel/         # AI-generated content badge
+│   │   └── Glossary/        # Inline term definitions
+│   ├── pages/               # Route pages
+│   │   ├── Dashboard/       # Main amendment list + filters
+│   │   └── AmendmentDetail/ # Individual amendment analysis
+│   ├── services/            # API client services
 │   │   └── api.ts
-│   ├── types/               # TypeScript types
-│   │   └── index.ts
-│   └── App.tsx
+│   └── hooks/               # Custom React hooks
 ├── tests/
 │   ├── unit/
 │   └── e2e/
 ├── package.json
 ├── vite.config.ts
-└── tailwind.config.js
+├── tailwind.config.js
+└── tsconfig.json
 
 shared/
-└── types/                   # Shared type definitions between backend/frontend
-    └── api_contracts.ts
+└── glossary.json            # Portuguese term definitions for UI
 ```
 
-**Structure Decision**: Web application architecture (Option 2) selected based on:
-- Clear separation of concerns (backend API orchestration vs. frontend presentation)
-- Independent deployment of backend/frontend for scaling
-- Shared types directory enables type safety across stack
-- Aligns with user's specified architecture (FastAPI backend + React frontend)
+**Structure Decision**: Web application structure with separate `backend/` and `frontend/` directories. The backend handles API orchestration, risk calculation, and AI agent integration. The frontend provides the citizen-facing dashboard interface.
 
 ## Complexity Tracking
 
-> **Note**: No constitutional violations identified. Architecture follows simplicity principles (Constitution Technical Standards).
+| Complexity | Why Needed | Simpler Alternative Rejected Because |
+|------------|------------|-------------------------------------|
+| AI Agent (Multimodal) | Required for Street View classification (FR-009) and CNAE semantic comparison | Rule-based classification would be inaccurate for visual analysis; CNAE matching requires NLP understanding |
+| Dual external API integration | Portal da Transparência + BrasilAPI needed for complete data | No single API provides both amendment and company data |
+| Caching layer | Constitution IV: minimize government API load | Direct API calls would violate rate limits and performance requirements |
 
-| Decision | Justification | Simpler Alternative Considered |
-|----------|---------------|-------------------------------|
-| Supabase for caching | Managed PostgreSQL simplifies cache + persistence layer, built-in real-time features could enable future enhancements (alert subscriptions) | In-memory Redis cache: rejected because loses data on restart, no persistence for offline analysis, higher operational overhead |
-| Agno AI framework | Abstracts AI agent complexity, standardizes GPT-4 integration for both image + NLP tasks | Direct OpenAI API calls: rejected because increases boilerplate for prompt management, error handling, retry logic across two AI use cases |
-| Separate AI agent service | Could extract agents to independent microservice for independent scaling of AI operations | Inline AI in backend API: acceptable for MVP, extract later if AI operations become bottleneck (monitor p95 latency) |
+## External API Dependencies
 
----
+### Portal da Transparência (Brazilian Transparency Portal)
 
-## Phase 0: Research & Technology Validation
+- **Base URL**: `https://api.portaldatransparencia.gov.br`
+- **Endpoint**: `/api-de-dados/emendas`
+- **Data**: Amendment details (author, year, value, purpose, recipient CNPJ)
+- **Rate Limits**: 30 requests/minute (requires caching strategy)
+- **Fallback**: Serve cached data with staleness indicator
 
-**Status**: To be completed in research.md
+### BrasilAPI
 
-### Research Tasks
+- **Base URL**: `https://brasilapi.com.br/api`
+- **Endpoint**: `/cnpj/v1/{cnpj}`
+- **Data**: Company registration (founding date, CNAE, capital, address)
+- **Rate Limits**: 3 requests/second
+- **Fallback**: Serve cached data, partial risk analysis
 
-1. **Portal da Transparência API Investigation**
-   - Endpoint: `/api-de-dados/emendas`
-   - Required fields validation: author, year, value, purpose, recipient CNPJ
-   - Rate limits, authentication requirements
-   - Data update frequency
-   - Response format and error handling
+### Google Street View API (or equivalent)
 
-2. **BrasilAPI Integration Research**
-   - Endpoint: `/cnpj/{cnpj}`
-   - Response schema: founding date, CNAE, capital, address
-   - Rate limits, availability guarantees
-   - Fallback strategies for unavailable CNPJs
+- **Purpose**: Retrieve imagery for company addresses
+- **Fallback**: "Address verification unavailable" message
 
-3. **Street View API Selection**
-   - Google Street View Static API vs. alternatives
-   - Pricing model for expected volume (10,000 addresses)
-   - Image resolution requirements for AI classification
-   - Geographic coverage for Brazilian addresses
+### AI Provider API (GPT-4o / Claude 3.5 Sonnet)
 
-4. **Agno Framework + GPT-4.1-mini Integration**
-   - Agno framework installation and configuration
-   - GPT-4.1-mini API access and pricing
-   - Prompt engineering for:
-     a. Image classification (Commercial/Residential/Vacant)
-     b. CNAE-purpose semantic comparison
-   - Token usage estimation and cost projections
-   - Confidence score interpretation
+- **Purpose 1**: Visual classification of Street View images
+- **Purpose 2**: CNAE-to-amendment semantic compatibility analysis
+- **Fallback**: Skip AI features, use manual classification option
 
-5. **CNAE-Purpose Mapping Strategy**
-   - Obtain CNAE code list and descriptions
-   - Define amendment purpose categories (Culture, Health, Education, Infrastructure, etc.)
-   - Build initial compatibility matrix
-   - Determine semantic similarity thresholds
+## Data Synchronization Strategy
 
-6. **Risk Scoring Algorithm Design**
-   - Weight distribution for three factors (company age, CNAE, capital)
-   - Threshold definitions: Low (0-30), Medium (31-69), High (70-100)
-   - Edge case handling (missing data, ambiguous CNAEs, zero-value amendments)
+### Update Frequency
 
-7. **Caching Strategy Architecture**
-   - Supabase schema design for cached data
-   - Cache invalidation rules (7-day amendments, 30-day companies)
-   - Staleness indicator implementation
-   - Cache warming strategy for initial dataset
+- **Emendas**: Semanal (domingo à noite, fora do horário de pico)
+- **Empresas**: Sob demanda (quando emenda referencia CNPJ não cadastrado) + refresh mensal
 
-8. **Testing Strategy**
-   - Contract test approach for external APIs (mocking Portal da Transparência, BrasilAPI)
-   - AI agent testing (deterministic prompts vs. probabilistic outputs)
-   - E2E test scenarios covering all user stories
+### Sync Job: `sync_amendments`
 
-9. **Accessibility Requirements**
-   - WCAG 2.1 AA checklist for React components
-   - Screen reader testing tools
-   - Keyboard navigation patterns
-   - Color contrast validation for risk score badges
+```bash
+# Executado via cron ou manualmente
+python -m src.scripts.sync_amendments --year 2024 --year 2025 --year 2026
+```
 
-10. **Security Configuration**
-    - HTTPS setup (Let's Encrypt or cloud provider SSL)
-    - CSP, HSTS headers for FastAPI
-    - CORS configuration (frontend-backend communication)
-    - Rate limiting strategy (per-IP limits)
+**Fluxo**:
+1. Busca emendas do Portal da Transparência (paginado)
+2. Compara com dados locais (by `codigo_emenda`)
+3. Insere novas emendas
+4. Atualiza emendas modificadas (valor, objeto)
+5. Para cada nova emenda com CNPJ: busca dados da empresa na BrasilAPI
+6. Recalcula risk scores para emendas novas/modificadas
+7. Registra log de sincronização
 
-**Output**: research.md documenting all decisions, alternatives considered, and rationale
+**Controle de Rate Limit**:
+- Portal da Transparência: 30 req/min → batch de 30, pausa 60s
+- BrasilAPI: 3 req/s → delay de 350ms entre requests
 
----
+### Indicadores no Frontend
 
-## Phase 1: Design Artifacts
+| Situação | Exibição |
+|----------|----------|
+| Dados < 7 dias | Sem aviso |
+| Dados 7-14 dias | "Dados atualizados há X dias" (amarelo) |
+| Dados > 14 dias | "Dados podem estar desatualizados" (laranja) |
+| Sync em andamento | "Atualizando dados..." (loading) |
 
-**Prerequisites**: research.md complete with all NEEDS CLARIFICATION resolved
+### Logs e Monitoramento
 
-### 1. Data Model Design (data-model.md)
+Cada sync registra:
+- Timestamp início/fim
+- Emendas novas/atualizadas/inalteradas
+- Erros de API (CNPJs não encontrados, timeouts)
+- Tempo total de execução
 
-Define schemas for:
+## Risk Score Algorithm
 
-- **Amendment Entity**: ID, author, year, value (BRL), purpose, recipient_cnpj, risk_score, created_at, updated_at, source_url
-- **Company Entity**: CNPJ (PK), legal_name, founding_date, primary_cnae, capital_amount, address (full), created_at, updated_at, source_url
-- **RiskAssessment Entity**: amendment_id (FK), overall_score, age_score, cnae_score, capital_score, age_explanation, cnae_explanation, capital_explanation, calculated_at
-- **VisualAnalysis Entity**: company_cnpj (FK), street_view_url, ai_classification (enum), ai_confidence, ai_justification, image_date, analyzed_at
+The risk score (0-100) is calculated from three weighted factors:
 
-Include:
-- Validation rules (e.g., risk_score 0-100, CNPJ format)
-- Relationships (Amendment → Company one-to-one, Amendment → RiskAssessment one-to-one)
-- Index strategy for query performance (index on risk_score, year, author for dashboard filters)
+```
+Risk Score = (Company Age Factor × 0.35) + (CNAE Factor × 0.35) + (Capital Factor × 0.30)
+```
 
-### 2. API Contracts (contracts/)
+### Factor Calculations
 
-**backend-api.yaml** (OpenAPI 3.0):
+| Factor | Condition | Score |
+|--------|-----------|-------|
+| **Company Age** | Founded < 6 months | 100 |
+| | Founded 6-12 months | 70 |
+| | Founded 1-2 years | 40 |
+| | Founded > 2 years | 0 |
+| **CNAE Compatibility** | Clearly incompatible | 100 |
+| | Ambiguous/uncertain | 50 |
+| | Compatible | 0 |
+| **Capital Adequacy** | Capital < 1% of amendment | 100 |
+| | Capital 1-5% of amendment | 50 |
+| | Capital > 5% of amendment | 0 |
 
-Endpoints:
-- `GET /api/v1/amendments` - List amendments with filters (parliamentarian, year, risk_score_min, risk_score_max), pagination
-- `GET /api/v1/amendments/{id}` - Get amendment detail with risk assessment and company data
-- `GET /api/v1/companies/{cnpj}` - Get company details (cached from BrasilAPI)
-- `GET /api/v1/risk-scores/{amendment_id}` - Get detailed risk score breakdown
-- `GET /api/v1/visual-analysis/{cnpj}` - Get Street View analysis (cached or trigger new analysis)
-- `GET /api/v1/health` - Health check, API dependency status
+**Risk Categories**:
+- 0-30: Low Risk
+- 31-69: Medium Risk
+- 70-100: High Risk
 
-**external-apis.md**:
+## AI Agent Interface
 
-Document Portal da Transparência, BrasilAPI, Street View API endpoints, authentication, rate limits, error codes, sample responses
+### Vision Analysis (Street View Classification)
 
-### 3. Quickstart Guide (quickstart.md)
+**Input**: Street View image URL
+**Output**:
+```json
+{
+  "classification": "Commercial Establishment" | "Residential Property" | "Vacant/Undeveloped Lot",
+  "confidence": 0.0-1.0,
+  "justification": "string (explanation of visual features)"
+}
+```
 
-Sections:
-- **Prerequisites**: Python 3.11+, Node 18+, Supabase account
-- **Backend Setup**: Virtual environment, install dependencies, configure environment variables (API keys, Supabase connection), run migrations, start FastAPI dev server
-- **Frontend Setup**: npm install, configure API base URL, start Vite dev server
-- **Running Tests**: Backend (pytest), Frontend (Vitest), E2E (Playwright)
-- **Deployment**: Supabase setup, backend deployment (Railway/Render), frontend deployment (Vercel/Netlify)
-- **Terminology Glossary**: CNAE, Emendas Parlamentares, TCU, CGU, Portal da Transparência definitions
-- **Legal Safety Checklist**: Approved vs. prohibited terms, content review process
+### NLP Analysis (CNAE Compatibility)
 
-### 4. Agent Context Update
+**Input**:
+- Amendment purpose description (text)
+- Company primary CNAE code + description
 
-Run `.specify/scripts/bash/update-agent-context.sh claude` to add:
-- Python 3.11, FastAPI, Pydantic
-- React 18, TypeScript 5, Vite, Tailwind CSS
-- Supabase, PostgreSQL
-- Agno framework, OpenAI GPT-4.1-mini
-- pytest, Vitest, Playwright
+**Output**:
+```json
+{
+  "compatibility": "compatible" | "incompatible" | "ambiguous",
+  "confidence": 0.0-1.0,
+  "reasoning": "string (explanation of semantic match/mismatch)"
+}
+```
 
----
+## Security Considerations
 
-## Phase 1 Completion Gate: Re-evaluate Constitution Check
+- JWT-based API authentication (protect write endpoints)
+- Read endpoints can be public for transparency
+- Rate limiting on all endpoints (prevent abuse)
+- Input validation for CNPJ format
+- No PII collection beyond optional accounts (email only)
+- HTTPS enforced
+- CSP and HSTS headers
 
-After design artifacts complete, verify:
+## Post-Design Constitution Re-Check
 
-- ✅ Data model includes source_url fields (Principle I: Transparency)
-- ✅ Risk assessment includes explanation fields (Principle III: Explainability)
-- ✅ API contracts include staleness indicators (Principle IV: Performance)
-- ✅ Quickstart includes accessibility checklist (Principle V: Citizen-Centric UX)
-- ✅ No accusatory terminology in any artifact (Principle II: Legal Safety)
+*Re-evaluated after Phase 1 design completion.*
+
+| Principle | Design Artifact | Compliance Status | Notes |
+|-----------|-----------------|-------------------|-------|
+| **I. Data Transparency** | openapi.yaml | ✅ PASS | `fonte_url` field on all entities; `X-Data-Atualizada` headers; `aviso_dados` for staleness |
+| **I. Data Transparency** | data-model.md | ✅ PASS | `fonte_dados_url` and `data_atualizacao` on all models |
+| **II. Legal Safety** | ai-agent.md | ✅ PASS | Conservative CNAE matching; "ambíguo" option prevents false positives |
+| **II. Legal Safety** | openapi.yaml | ✅ PASS | Portuguese neutral terminology throughout |
+| **III. AI Ethics** | ai-agent.md | ✅ PASS | `provider`, `model_version` for auditability; `justificativa`/`reasoning` for explainability |
+| **III. AI Ethics** | openapi.yaml | ✅ PASS | `aviso_ia` disclaimer; `metadados_ia` object for audit trail |
+| **IV. Performance** | research.md | ✅ PASS | Multi-tier caching strategy; circuit breaker patterns defined |
+| **IV. Performance** | openapi.yaml | ✅ PASS | `X-Cache-Status` header; fallback responses for API unavailability |
+| **V. Citizen-Centric UX** | Plan structure | ✅ PASS | `Glossary` component in frontend; Portuguese interface; mobile-first design specified |
+
+### Post-Design Gate Result: ✅ PASS
+
+All constitution principles are addressed in the design artifacts. Ready for task generation.
 
 ---
 
 ## Next Steps
 
-After this plan is complete:
-
-1. Execute Phase 0: Generate research.md by investigating all research tasks
-2. Execute Phase 1: Generate data-model.md, contracts/, quickstart.md based on research findings
-3. Run `/speckit.tasks` to convert this plan into executable tasks.md with user story organization
-4. Implement via `/speckit.implement` or manual development following tasks.md
-
-**Branch**: 001-emendas-oversight
-**Plan File**: /Users/carlosandre/fiscaliza_ae/specs/001-emendas-oversight/plan.md
+After plan approval:
+1. Run `/speckit.tasks` to generate detailed implementation tasks
+2. Tasks will be ordered by dependency (backend APIs first, then frontend)
+3. Each task will include acceptance criteria from the spec

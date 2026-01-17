@@ -1,0 +1,755 @@
+openapi: 3.1.0
+info:
+  title: Fiscaliza AE - Parliamentary Amendments Oversight API
+  description: |
+    API for identifying and scoring potential irregularities in Brazilian federal parliamentary amendments.
+
+    ## Data Sources
+    - **Portal da Transparência**: Federal government transparency portal for amendment data
+    - **BrasilAPI**: Brazilian open data API for company registration data
+
+    ## Risk Score Categories
+    - **0-30**: Low Risk (baixo)
+    - **31-69**: Medium Risk (médio)
+    - **70-100**: High Risk (alto)
+
+    ## Constitutional Compliance
+    This API adheres to the Fiscaliza AE Constitution principles:
+    - All data includes source traceability links
+    - Uses neutral language (no accusatory terms)
+    - AI-generated content is clearly labeled
+    - Supports caching to minimize government API load
+  version: 1.0.0
+  contact:
+    name: Fiscaliza AE
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+  - url: https://api.fiscaliza.ae/v1
+    description: Production
+
+tags:
+  - name: amendments
+    description: Parliamentary amendment operations
+  - name: companies
+    description: Company registration data
+  - name: risk
+    description: Risk assessment operations
+  - name: auth
+    description: Authentication endpoints
+
+paths:
+  /amendments:
+    get:
+      tags:
+        - amendments
+      summary: List and filter amendments
+      description: |
+        Retrieve a paginated list of parliamentary amendments with optional filters.
+        Supports filtering by author, year, and risk score category.
+
+        **Performance**: p95 < 2s for cached data (FR-013)
+      operationId: listAmendments
+      parameters:
+        - name: autor
+          in: query
+          description: Filter by parliamentarian author name (partial match)
+          schema:
+            type: string
+            example: "João Silva"
+        - name: ano
+          in: query
+          description: Filter by fiscal year
+          schema:
+            type: integer
+            minimum: 2000
+            example: 2024
+        - name: risco_min
+          in: query
+          description: Minimum risk score (0-100)
+          schema:
+            type: number
+            minimum: 0
+            maximum: 100
+            example: 70
+        - name: risco_max
+          in: query
+          description: Maximum risk score (0-100)
+          schema:
+            type: number
+            minimum: 0
+            maximum: 100
+            example: 100
+        - name: categoria_risco
+          in: query
+          description: Risk category filter
+          schema:
+            type: string
+            enum: [baixo, medio, alto]
+        - name: ordenar_por
+          in: query
+          description: Sort field
+          schema:
+            type: string
+            enum: [score_total, ano_emenda, valor_empenhado, nome_autor]
+            default: score_total
+        - name: ordem
+          in: query
+          description: Sort direction
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: pagina
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limite
+          in: query
+          description: Items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Successful response with paginated amendments
+          headers:
+            X-Data-Atualizada:
+              description: Timestamp of last data update (ISO 8601)
+              schema:
+                type: string
+                format: date-time
+            X-Cache-Status:
+              description: Whether response came from cache
+              schema:
+                type: string
+                enum: [HIT, MISS]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmendmentListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /amendments/{id}:
+    get:
+      tags:
+        - amendments
+      summary: Get amendment details with risk analysis
+      description: |
+        Retrieve full details for a specific amendment including:
+        - Amendment metadata
+        - Recipient company information
+        - Risk score breakdown with explanations
+        - Visual analysis (if available)
+
+        **FR-007 Compliance**: Includes source data links for verification
+      operationId: getAmendment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Amendment UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Amendment details with full risk analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AmendmentDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /companies/{cnpj}:
+    get:
+      tags:
+        - companies
+      summary: Get company registration data
+      description: |
+        Retrieve company information from BrasilAPI cache.
+
+        **Cache**: 30 days TTL (FR-013)
+        **Fallback**: Returns cached data with staleness indicator if API unavailable
+      operationId: getCompany
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          description: Company CNPJ (14 digits, no formatting)
+          schema:
+            type: string
+            pattern: '^\d{14}$'
+            example: "12345678000190"
+      responses:
+        '200':
+          description: Company registration data
+          headers:
+            X-Data-Atualizada:
+              description: When company data was last fetched
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyResponse'
+        '404':
+          description: Company not found in BrasilAPI
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /risk/{amendment_id}/calculate:
+    post:
+      tags:
+        - risk
+      summary: Trigger risk calculation for an amendment
+      description: |
+        Initiates or recalculates the risk assessment for an amendment.
+
+        **Requires authentication** for write operations.
+      operationId: calculateRisk
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: amendment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: force_refresh
+          in: query
+          description: Force recalculation even if recent assessment exists
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Risk assessment calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskAssessmentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /risk/{amendment_id}/visual-analysis:
+    post:
+      tags:
+        - risk
+      summary: Trigger AI visual analysis for amendment location
+      description: |
+        Initiates AI-powered visual analysis of the recipient company's address
+        using Street View imagery.
+
+        **FR-009/FR-010 Compliance**: Results include AI-generated labels and disclaimers.
+        **Constitution III Compliance**: Provider and model version are recorded for auditability.
+      operationId: triggerVisualAnalysis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: amendment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Visual analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VisualAnalysisResponse'
+        '202':
+          description: Analysis queued (async processing)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "processing"
+                  message:
+                    type: string
+                    example: "Análise visual em processamento"
+        '400':
+          description: Address unavailable for visual analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/token:
+    post:
+      tags:
+        - auth
+      summary: Obtain JWT access token
+      description: Authenticate and receive a JWT token for protected endpoints.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Returns API health status and external API availability.
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  portal_transparencia:
+                    type: string
+                    enum: [available, degraded, unavailable]
+                  brasilapi:
+                    type: string
+                    enum: [available, degraded, unavailable]
+                  database:
+                    type: string
+                    enum: [connected, disconnected]
+                  timestamp:
+                    type: string
+                    format: date-time
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AmendmentSummary:
+      type: object
+      required:
+        - id
+        - codigo_emenda
+        - nome_autor
+        - ano_emenda
+        - valor_empenhado
+        - nome_beneficiario
+      properties:
+        id:
+          type: string
+          format: uuid
+        codigo_emenda:
+          type: string
+          description: Official amendment code
+        nome_autor:
+          type: string
+          description: Parliamentarian author name
+        ano_emenda:
+          type: integer
+          description: Fiscal year
+        valor_empenhado:
+          type: number
+          format: float
+          description: Amendment value in BRL
+        nome_beneficiario:
+          type: string
+          description: Recipient company/entity name
+        score_total:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Overall risk score (0-100)
+          nullable: true
+        categoria_risco:
+          type: string
+          enum: [baixo, medio, alto]
+          nullable: true
+        fonte_url:
+          type: string
+          format: uri
+          description: Link to source in Portal da Transparência
+
+    AmendmentListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - pagina
+        - limite
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AmendmentSummary'
+        total:
+          type: integer
+          description: Total number of matching amendments
+        pagina:
+          type: integer
+          description: Current page number
+        limite:
+          type: integer
+          description: Items per page
+        data_atualizacao:
+          type: string
+          format: date-time
+          description: Last data refresh timestamp
+        aviso_dados:
+          type: string
+          description: Data staleness warning if applicable
+          example: "Dados atualizados há 2 dias - fonte indisponível temporariamente"
+          nullable: true
+
+    AmendmentDetailResponse:
+      type: object
+      required:
+        - emenda
+        - fontes
+      properties:
+        emenda:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            codigo_emenda:
+              type: string
+            nome_autor:
+              type: string
+            ano_emenda:
+              type: integer
+            valor_empenhado:
+              type: number
+            objeto_emenda:
+              type: string
+              description: Amendment purpose description
+            cnpj_beneficiario:
+              type: string
+            nome_beneficiario:
+              type: string
+            data_atualizacao:
+              type: string
+              format: date-time
+        empresa:
+          $ref: '#/components/schemas/CompanyResponse'
+          nullable: true
+        avaliacao_risco:
+          $ref: '#/components/schemas/RiskAssessmentResponse'
+          nullable: true
+        analise_visual:
+          $ref: '#/components/schemas/VisualAnalysisResponse'
+          nullable: true
+        fontes:
+          type: object
+          description: Source verification links (FR-012 compliance)
+          properties:
+            portal_transparencia:
+              type: string
+              format: uri
+              description: Direct link to amendment in Portal da Transparência
+            brasilapi:
+              type: string
+              format: uri
+              description: Direct link to company in BrasilAPI
+              nullable: true
+            google_maps:
+              type: string
+              format: uri
+              description: Link to company address in Google Maps
+              nullable: true
+
+    CompanyResponse:
+      type: object
+      properties:
+        cnpj:
+          type: string
+          pattern: '^\d{14}$'
+        razao_social:
+          type: string
+        data_fundacao:
+          type: string
+          format: date
+          nullable: true
+        idade_meses:
+          type: integer
+          description: Company age in months (calculated)
+          nullable: true
+        cnae_principal:
+          type: integer
+          nullable: true
+        cnae_descricao:
+          type: string
+          nullable: true
+        capital_social:
+          type: number
+          format: float
+          nullable: true
+        endereco:
+          type: object
+          properties:
+            logradouro:
+              type: string
+            numero:
+              type: string
+            complemento:
+              type: string
+            bairro:
+              type: string
+            municipio:
+              type: string
+            uf:
+              type: string
+            cep:
+              type: string
+          nullable: true
+        fonte_url:
+          type: string
+          format: uri
+        data_atualizacao:
+          type: string
+          format: date-time
+
+    RiskAssessmentResponse:
+      type: object
+      required:
+        - score_total
+        - categoria_risco
+        - fatores
+      properties:
+        score_total:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        categoria_risco:
+          type: string
+          enum: [baixo, medio, alto]
+        fatores:
+          type: array
+          description: Risk factor breakdown (FR-015 compliance)
+          items:
+            type: object
+            required:
+              - nome
+              - score
+              - explicacao
+            properties:
+              nome:
+                type: string
+                enum: [idade_empresa, compatibilidade_cnae, adequacao_capital]
+              score:
+                type: number
+                format: float
+                minimum: 0
+                maximum: 100
+              peso:
+                type: number
+                format: float
+                description: Weight of this factor (0.0-1.0)
+              explicacao:
+                type: string
+                description: Plain-language explanation in Portuguese
+                example: "Empresa fundada há 8 meses (15/05/2025) - Risco Alto: +70 pontos"
+        data_calculo:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+          description: Warning if partial calculation
+          example: "Pontuação parcial - dados da empresa indisponíveis"
+          nullable: true
+
+    VisualAnalysisResponse:
+      type: object
+      properties:
+        streetview_url:
+          type: string
+          format: uri
+          description: Street View image URL
+          nullable: true
+        imagem_data_captura:
+          type: string
+          format: date
+          description: When Street View image was captured
+          nullable: true
+        classificacao:
+          type: string
+          enum:
+            - Estabelecimento Comercial
+            - Propriedade Residencial
+            - Terreno Vago
+            - Indisponível
+        confianca:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: AI confidence score
+        justificativa:
+          type: string
+          description: AI explanation of classification
+        aviso_ia:
+          type: string
+          description: AI disclaimer (FR-010 compliance)
+          default: "Classificação gerada por IA - verifique independentemente"
+        metadados_ia:
+          type: object
+          description: AI audit trail (Constitution III compliance)
+          properties:
+            provider:
+              type: string
+              example: "openai"
+            model:
+              type: string
+              example: "gpt-4o-2024-08-06"
+        data_analise:
+          type: string
+          format: date-time
+        google_maps_url:
+          type: string
+          format: uri
+          description: Direct link to location in Google Maps
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: "bearer"
+        expires_in:
+          type: integer
+          description: Token expiration in seconds
+          example: 1800
+
+    Error:
+      type: object
+      required:
+        - codigo
+        - mensagem
+      properties:
+        codigo:
+          type: string
+          description: Error code
+        mensagem:
+          type: string
+          description: Human-readable error message in Portuguese
+        detalhes:
+          type: object
+          description: Additional error details
+          additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: "PARAMETRO_INVALIDO"
+            mensagem: "Ano deve ser entre 2000 e 2027"
+
+    Unauthorized:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: "NAO_AUTORIZADO"
+            mensagem: "Token de acesso inválido ou expirado"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            codigo: "NAO_ENCONTRADO"
+            mensagem: "Emenda não encontrada"
+
+    ServiceUnavailable:
+      description: External API unavailable, serving cached data
+      headers:
+        X-Fallback-Mode:
+          description: Indicates fallback behavior
+          schema:
+            type: string
+            example: "cached"
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - type: object
+                properties:
+                  dados_cache:
+                    type: boolean
+                    description: Whether cached data is being served
+                  cache_data_atualizacao:
+                    type: string
+                    format: date-time
+          example:
+            codigo: "SERVICO_INDISPONIVEL"
+            mensagem: "Portal da Transparência indisponível - exibindo dados em cache"
+            dados_cache: true
+            cache_data_atualizacao: "2026-01-14T10:30:00Z"

@@ -14,13 +14,18 @@
   Removed Sections: N/A
 
   Templates Requiring Updates:
-  ✅ .specify/templates/spec-template.md - Reviewed, compliant with constitution principles
-  ✅ .specify/templates/plan-template.md - Constitution Check section aligns with new principles
-  ✅ .specify/templates/tasks-template.md - Task categorization compatible with new principles
+  ⚠️ .specify/templates/spec-template.md - Needs constitution principle references (currently no references)
+  ⚠️ .specify/templates/plan-template.md - Constitution Check section contains placeholder only (line 34: "[Gates determined based on constitution file]")
+  ⚠️ .specify/templates/tasks-template.md - No constitution-based task categorization present
 
-  Follow-up TODOs: None
+  Follow-up TODOs:
+  - Update spec-template.md to include constitution compliance section
+  - Replace plan-template.md Constitution Check placeholder with actual principle validation logic
+  - Add constitution-aware task categorization to tasks-template.md
 
-  Rationale: MINOR version (1.0.0) - Initial constitution establishing governance framework
+  ⚠️ GOVERNANCE NOTE: According to Amendment Procedure (step 4), ratification requires "propagate changes to dependent artifacts". These template updates must be completed before ratification can be considered complete. Current status: Constitution ratified at 1.0.0, but dependent artifact updates are pending.
+
+  Rationale: MAJOR version (1.0.0) - Initial constitution establishing governance framework
 -->
 
 # Fiscaliza AE Constitution
