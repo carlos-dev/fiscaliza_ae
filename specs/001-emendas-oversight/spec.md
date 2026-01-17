@@ -90,7 +90,7 @@ A user wants to assess whether the recipient company's registered address appear
 - **FR-010**: System MUST display the AI classification alongside the Street View image with a clear "AI-generated" label and disclaimer
 - **FR-011**: System MUST use legally neutral terminology throughout - NEVER use terms like "fraud" or "corruption"; instead use "Potential Irregularity", "High Risk Pattern", or "Requires Further Investigation"
 - **FR-012**: All data presented MUST include direct links to original government sources for citizen verification
-- **FR-013**: System MUST cache API responses to minimize load on government APIs and improve performance (cache duration: [NEEDS CLARIFICATION: cache duration not specified - suggest 24 hours for amendment data, 7 days for company data, but may need adjustment based on data update frequency])
+- **FR-013**: System MUST cache API responses to minimize load on government APIs and improve performance (cache duration: 7 days for amendment data, 30 days for company registration data - balanced approach for oversight use case where real-time updates are not critical)
 - **FR-014**: System MUST display data staleness indicators when showing cached data (e.g., "Data as of: 2026-01-15 14:32")
 - **FR-015**: System MUST provide clear explanations for each risk factor calculation visible to end users (e.g., "Company age: Founded 6 months ago (2025-07-15) - High risk for new entity receiving R$500,000 - Contributes +35 points")
 
